@@ -85,7 +85,33 @@ object Anagrams {
    *  Note that the order of the occurrence list subsets does not matter -- the subsets
    *  in the example above could have been displayed in some other order.
    */
-  def combinations(occurrences: Occurrences): List[Occurrences] = ???
+  def combinations(occurrences: Occurrences): List[Occurrences] = {
+
+    def comb1(occurrences: Occurrences): List[Occurrences] = {
+      if (occurrences.isEmpty) List(Nil)
+      else {
+        for {
+          rest <- comb1(occurrences.tail)
+          occ <- 1 to occurrences.head._2
+        } yield List((occurrences.head._1, occ)) ::: rest
+      }
+    }
+
+    def comb2(occurrences: Occurrences): List[Occurrences] = {
+      if (occurrences.isEmpty) List(Nil)
+      else {
+        for {
+          occ <- occurrences
+          occn <- 1 to occ._2
+        } yield List((occ._1, occn))
+      }
+    }
+
+    if (occurrences.isEmpty) List(Nil)
+    else {
+      comb1(occurrences) ::: comb2(occurrences) ::: List(List())
+    }
+  }
 
   /**
    * Subtracts occurrence list `y` from occurrence list `x`.
@@ -98,7 +124,19 @@ object Anagrams {
    *  Note: the resulting value is an occurrence - meaning it is sorted
    *  and has no zero-entries.
    */
-  def subtract(x: Occurrences, y: Occurrences): Occurrences = ???
+  def subtract(x: Occurrences, y: Occurrences): Occurrences = {
+    def deleteTerm(map: Map[Char, Int], occy: (Char, Int)): Map[Char, Int] = {
+      val (y1, y2) = occy
+      val x2 = map.apply(y1)
+      if (x2 > y2)
+        map.updated(y1, x2 - y2)
+      else if (x2 == y2)
+        (map - y1)
+      else
+        map
+    }
+    (y.toMap foldLeft x.toMap)(deleteTerm).toList
+  }
 
   /**
    * Returns a list of all anagram sentences of the given sentence.
