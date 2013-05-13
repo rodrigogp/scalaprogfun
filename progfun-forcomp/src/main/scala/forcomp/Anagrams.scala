@@ -39,7 +39,10 @@ object Anagrams {
   def wordOccurrences(w: Word): Occurrences = w.toLowerCase().groupBy((element: Char) => element).map(p => (p._1, p._2.length())).toList.sorted
 
   /** Converts a sentence into its character occurrence list. */
-  def sentenceOccurrences(s: Sentence): Occurrences = wordOccurrences(s.mkString)
+  def sentenceOccurrences(s: Sentence): Occurrences = s match {
+    case Nil => Nil
+    case sentence => wordOccurrences(s.mkString)
+  }
 
   /**
    * The `dictionaryByOccurrences` is a `Map` from different occurrences to a sequence of all
@@ -57,7 +60,7 @@ object Anagrams {
    *    List(('a', 1), ('e', 1), ('t', 1)) -> Seq("ate", "eat", "tea")
    *
    */
-  lazy val dictionaryByOccurrences: Map[Occurrences, List[Word]] = loadDictionary.groupBy(w => wordOccurrences(w))
+  lazy val dictionaryByOccurrences: Map[Occurrences, List[Word]] = dictionary.groupBy(w => wordOccurrences(w)) withDefaultValue Nil
 
   /** Returns all the anagrams of a given word. */
   def wordAnagrams(word: Word): List[Word] = dictionaryByOccurrences(wordOccurrences(word))
@@ -87,30 +90,27 @@ object Anagrams {
    */
   def combinations(occurrences: Occurrences): List[Occurrences] = {
 
-    def comb1(occurrences: Occurrences): List[Occurrences] = {
+    def expandOccurrences(occurrences: Occurrences): List[Occurrences] = {
       if (occurrences.isEmpty) List(Nil)
       else {
         for {
-          rest <- comb1(occurrences.tail)
-          occ <- 1 to occurrences.head._2
-        } yield List((occurrences.head._1, occ)) ::: rest
+          rest <- expandOccurrences(occurrences.tail)
+          occn <- 1 to occurrences.head._2
+        } yield List((occurrences.head._1, occn)) ::: rest
       }
     }
 
-    def comb2(occurrences: Occurrences): List[Occurrences] = {
-      if (occurrences.isEmpty) List(Nil)
-      else {
-        for {
-          occ <- occurrences
-          occn <- 1 to occ._2
-        } yield List((occ._1, occn))
-      }
+    def getSubsetsOccurrences(occurrences: Occurrences): List[Occurrences] = {
+      val occSets = occurrences.toSet.subsets.toList
+      for {
+        occSet <- occSets
+      } yield occSet.toList
     }
 
-    if (occurrences.isEmpty) List(Nil)
-    else {
-      comb1(occurrences) ::: comb2(occurrences) ::: List(List())
-    }
+    for {
+      occsSubs <- getSubsetsOccurrences(occurrences)
+      occsEx <- expandOccurrences(occsSubs)
+    } yield occsEx.sorted
   }
 
   /**
@@ -135,7 +135,7 @@ object Anagrams {
       else
         map
     }
-    (y.toMap foldLeft x.toMap)(deleteTerm).toList
+    (y.toMap foldLeft x.toMap)(deleteTerm).toList.sorted
   }
 
   /**
@@ -179,6 +179,18 @@ object Anagrams {
    *
    *  Note: There is only one anagram of an empty sentence.
    */
-  def sentenceAnagrams(sentence: Sentence): List[Sentence] = ???
+  def sentenceAnagrams(sentence: Sentence): List[Sentence] = {
+    def anagramsFromOccurrences(occs: Occurrences): List[Sentence] = {
+      if (occs.isEmpty) List(List())
+      else {
+        for {
+          comb <- combinations(occs)
+          word <- dictionaryByOccurrences(comb)
+          rest <- anagramsFromOccurrences(subtract(occs, comb))
+        } yield word :: rest
+      }
+    }
+    anagramsFromOccurrences(sentenceOccurrences(sentence))
+  }
 
 }
